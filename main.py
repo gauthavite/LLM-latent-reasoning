@@ -76,7 +76,7 @@ if Config.modality == "coconut":
         target_embedding = embeddings.weight.data[target_id]
         embeddings.weight.data[token_id] = target_embedding
     model = Coconut(model, latent_id, tokenizer.eos_token_id)
-
+    
 # If we want to load the best model
 ### model.load_state_dict(torch.load(os.path.join(Config.save_dir, "best_model.pt")))
 

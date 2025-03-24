@@ -3,7 +3,7 @@ import torch.nn as nn
 from torch.nn import CrossEntropyLoss
 from collections import namedtuple
 
-Outputs = namedtuple("Outputs", ["loss", "inputs_embeds", "logits"])
+Outputs = namedtuple("Outputs", ["loss", "inputs_embeds", "logits", "hidden_states"])
 
 class Coconut(nn.Module):
     def __init__(
@@ -41,6 +41,7 @@ class Coconut(nn.Module):
 
         inputs_embeds = self.embedding(input_ids)
 
+        hidden_states_ls = []
         for pass_idx in range(max_n_latents):
             outputs = self.base_causallm(
                 inputs_embeds=inputs_embeds[:, next_compute_range[0] : next_compute_range[1], :],
@@ -51,6 +52,7 @@ class Coconut(nn.Module):
             logits.append(outputs.logits)
 
             hidden_states = outputs.hidden_states[-1]
+            hidden_states_ls.append(hidden_states[:,-1,:])
 
             # We will now update the embeddings with the hidden states for the latent tokens.
             filling_indices = [(inst_i, lat_positions[pass_idx]) for inst_i, lat_positions in enumerate(latent_lists) if len(lat_positions) > pass_idx]
@@ -91,7 +93,7 @@ class Coconut(nn.Module):
         loss_fct = CrossEntropyLoss()
         loss = loss_fct(shift_logits.view(-1, shift_logits.size(-1)), shift_labels.view(-1))
 
-        return Outputs(loss=loss, inputs_embeds=inputs_embeds, logits=logits)
+        return Outputs(loss=loss, inputs_embeds=inputs_embeds, logits=logits, hidden_states=hidden_states_ls)
 
     def train(self):
         self.base_causallm.train()
@@ -108,6 +110,7 @@ class Coconut(nn.Module):
         position_ids = torch.arange(input_ids.shape[1], device=input_ids.device).unsqueeze(0)
 
         outputs = self.forward(input_ids, attention_mask, labels, position_ids)
+        hidden_states = outputs.hidden_states
 
         next_token = torch.argmax(outputs.logits[0, -1]).item()
         tokens.append(next_token)
@@ -128,4 +131,4 @@ class Coconut(nn.Module):
             )
             inputs_embeds = torch.cat((inputs_embeds, next_token_embed), dim=1)
 
-        return torch.tensor(tokens, device=input_ids.device).unsqueeze(0)
+        return torch.tensor(tokens, device=input_ids.device).unsqueeze(0), hidden_states

@@ -1,5 +1,5 @@
 # LLM-latent-reasoning
-This repository provides a simplified and easy-to-understand implementation of **Coconut**, inspired by the paper:
+This repository provides a lightweight implementation of **Coconut**, inspired by the paper:
 
 > **"Training Large Language Models to Reason in a Continuous Latent Space"**  
 > [Paper Link](https://arxiv.org/abs/2310.02089) | [Official Repository](https://github.com/facebookresearch/coconut)

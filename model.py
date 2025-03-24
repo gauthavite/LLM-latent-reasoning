@@ -99,7 +99,7 @@ class Coconut(nn.Module):
     def eval(self):
         self.base_causallm.eval()
 
-    def generate(self, input_ids, max_new_tokens=16):
+    def generate(self, input_ids, max_new_tokens=16, **kwargs):
 
         tokens = input_ids[0].detach().tolist()
 

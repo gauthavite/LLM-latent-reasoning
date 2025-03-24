@@ -28,6 +28,12 @@ end_id = tokenizer.convert_tokens_to_ids("<|end-latent|>")
 model.resize_token_embeddings(len(tokenizer))
 
 if Config.modality == "coconut":
+    embeddings = model.get_input_embeddings()
+    target_id = tokenizer.convert_tokens_to_ids("<<")
+    # initialize the new token embeddings with a known token
+    for token_id in [latent_id, start_id, end_id]:
+        target_embedding = embeddings.weight.data[target_id]
+        embeddings.weight.data[token_id] = target_embedding
     model = Coconut(model, latent_id, tokenizer.eos_token_id)
 
 
@@ -61,7 +67,7 @@ best_acc = 0
 
 
 for epoch in range(Config.num_epochs):
-    scheduled_stage = 0 if Config.modality == "coconut" else epoch // Config.epochs_per_stage
+    scheduled_stage = epoch // Config.epochs_per_stage if Config.modality == "coconut" else 0
 
     dataset_train = CoconutDataset(
         Config.name,
@@ -111,7 +117,7 @@ for epoch in range(Config.num_epochs):
         batch = {key: batch[key].to(Config.device) for key in batch.keys() if key != "idx"}
 
         with torch.autocast(device_type='cuda', dtype=torch.float16):
-            outputs = model(batch["input_ids"], batch["attention_mask"], batch["labels"], batch["position_ids"])
+            outputs = model(**batch)
             loss = outputs.loss
 
         scaler.scale(loss).backward()
@@ -144,7 +150,7 @@ for epoch in range(Config.num_epochs):
             question = question_val[test_idx.cpu().item()]
 
             with torch.autocast(device_type='cuda', dtype=torch.float16):
-                outputs = model.generate(batch["input_ids"], max_new_tokens=max_new_tokens)
+                outputs = model.generate(**batch, max_new_tokens=max_new_tokens, pad_token_id=tokenizer.eos_token_id)
 
             text_output = tokenizer.decode(outputs[0], skip_special_tokens=True)
             answer_output = text_output.split("#")[-1].replace(",", "").strip()

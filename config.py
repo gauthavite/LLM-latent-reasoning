@@ -1,7 +1,7 @@
 import torch
 
 class Config:
-    modality = "coconut" # "cot"
+    modality = "no-cot" # "coconut" or "cot" or "no-cot"
     name = "prosqa"
     save_dir = f"/Data/checkpoints/test"
 

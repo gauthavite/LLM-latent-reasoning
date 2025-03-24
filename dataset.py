@@ -39,7 +39,7 @@ class CoconutDataset(Dataset):
         with open(f"data/{name}_{train_or_val}.json") as f:
             data = json.load(f)
         if debug:
-            data = data[:200] if train_or_val == "train" else data[:20]
+            data = data[:100] if train_or_val == "train" else data[:20]
         return data
 
     def tokenize_sample(self, idx, sample):

@@ -7,14 +7,54 @@ import torch
 import torch.optim as optim
 from tqdm import tqdm
 from transformers import AutoModelForCausalLM, AutoTokenizer
-# from unsloth import FastModel
 
 from model import Coconut
 from config import Config
 from dataset import CoconutDataset, collate_fn
 
-model = AutoModelForCausalLM.from_pretrained('openai-community/gpt2')
-tokenizer = AutoTokenizer.from_pretrained('openai-community/gpt2')
+print("Experiment Configuration:")
+print("=" * 30)
+print(f"modality: {Config.modality}")
+print(f"name: {Config.name}")
+print(f"model: {Config.model}")
+print(f"c_thought: {Config.c_thought}")
+print(f"epochs_per_stage: {Config.epochs_per_stage}")
+print(f"max_latent_stage: {Config.max_latent_stage}")
+print(f"batch_size: {Config.batch_size}")
+print(f"num_epochs: {Config.num_epochs}")
+print(f"lr: {Config.lr}")
+print(f"weight_decay: {Config.weight_decay}")
+print(f"device: {Config.device}")
+print(f"debug: {Config.debug}")
+print("=" * 30)
+
+if Config.model == "gemma":
+    from unsloth import FastModel
+    
+    model, tokenizer = FastModel.from_pretrained(
+        model_name = "unsloth/gemma-3-1b-it",
+        max_seq_length = 1024,
+        load_in_4bit = False,
+        load_in_8bit = False,
+        full_finetuning = False,
+    )
+    model = FastModel.get_peft_model(
+        model,
+        finetune_vision_layers     = False,
+        finetune_language_layers   = True,
+        finetune_attention_modules = True,
+        finetune_mlp_modules       = True,
+        r = 8,
+        lora_alpha = 8,
+        lora_dropout = 0,
+        bias = "none",
+        random_state = 3407,
+    )
+elif Config.model == "gpt2":
+    model = AutoModelForCausalLM.from_pretrained('openai-community/gpt2')
+    tokenizer = AutoTokenizer.from_pretrained('openai-community/gpt2')
+else:
+    raise ValueError("Unrecognized model name.")
 
 tokenizer.pad_token = tokenizer.eos_token
 tokenizer.add_tokens("<|start-latent|>")
@@ -27,6 +67,7 @@ end_id = tokenizer.convert_tokens_to_ids("<|end-latent|>")
 #resize model token embeddings
 model.resize_token_embeddings(len(tokenizer))
 
+
 if Config.modality == "coconut":
     embeddings = model.get_input_embeddings()
     target_id = tokenizer.convert_tokens_to_ids("<<")
@@ -36,6 +77,8 @@ if Config.modality == "coconut":
         embeddings.weight.data[token_id] = target_embedding
     model = Coconut(model, latent_id, tokenizer.eos_token_id)
 
+# If we want to load the best model
+### model.load_state_dict(torch.load(os.path.join(Config.save_dir, "best_model.pt")))
 
 if not os.path.exists(Config.save_dir):
     os.makedirs(Config.save_dir)
@@ -64,7 +107,6 @@ scaler = torch.amp.GradScaler()
 
 collate = partial(collate_fn, tokenizer=tokenizer, latent_id=latent_id)
 best_acc = 0
-
 
 for epoch in range(Config.num_epochs):
     scheduled_stage = epoch // Config.epochs_per_stage if Config.modality == "coconut" else 0

@@ -4,6 +4,7 @@ This repository provides a lightweight implementation of **Coconut**, inspired b
 > **"Training Large Language Models to Reason in a Continuous Latent Space"**  
 > [Paper Link](https://arxiv.org/abs/2310.02089) | [Official Repository](https://github.com/facebookresearch/coconut)
 
+
 ## How to run 
 1.	Update the configuration in ```config.py```.
 
@@ -12,6 +13,7 @@ This repository provides a lightweight implementation of **Coconut**, inspired b
 3.	Launch training: ```python main.py```.
 
 4.	Monitor checkpoints in the ```Config.save_dir``` folder. The best model based on validation accuracy is saved as ```best_model.pt```.
+
 
 ## Acknowledgments
 

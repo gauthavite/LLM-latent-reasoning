@@ -7,7 +7,6 @@ This repository provides a lightweight implementation of **Coconut**, inspired b
 ## How to run 
 1.	Update the configuration in ```config.py```.
 
-
 2.	Place your data in the data directory.
 
 3.	Launch training: ```python main.py```.

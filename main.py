@@ -1,4 +1,5 @@
 import os
+
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 import json
 from functools import partial
@@ -30,29 +31,29 @@ print("=" * 30)
 
 if Config.model == "gemma":
     from unsloth import FastModel
-    
+
     model, tokenizer = FastModel.from_pretrained(
-        model_name = "unsloth/gemma-3-1b-it",
-        max_seq_length = 1024,
-        load_in_4bit = False,
-        load_in_8bit = False,
-        full_finetuning = False,
+        model_name="unsloth/gemma-3-1b-it",
+        max_seq_length=1024,
+        load_in_4bit=False,
+        load_in_8bit=False,
+        full_finetuning=False,
     )
     model = FastModel.get_peft_model(
         model,
-        finetune_vision_layers     = False,
-        finetune_language_layers   = True,
-        finetune_attention_modules = True,
-        finetune_mlp_modules       = True,
-        r = 8,
-        lora_alpha = 8,
-        lora_dropout = 0,
-        bias = "none",
-        random_state = 3407,
+        finetune_vision_layers=False,
+        finetune_language_layers=True,
+        finetune_attention_modules=True,
+        finetune_mlp_modules=True,
+        r=8,
+        lora_alpha=8,
+        lora_dropout=0,
+        bias="none",
+        random_state=3407,
     )
 elif Config.model == "gpt2":
-    model = AutoModelForCausalLM.from_pretrained('openai-community/gpt2')
-    tokenizer = AutoTokenizer.from_pretrained('openai-community/gpt2')
+    model = AutoModelForCausalLM.from_pretrained("openai-community/gpt2")
+    tokenizer = AutoTokenizer.from_pretrained("openai-community/gpt2")
 else:
     raise ValueError("Unrecognized model name.")
 
@@ -64,7 +65,7 @@ latent_id = tokenizer.convert_tokens_to_ids("<|latent|>")
 start_id = tokenizer.convert_tokens_to_ids("<|start-latent|>")
 end_id = tokenizer.convert_tokens_to_ids("<|end-latent|>")
 
-#resize model token embeddings
+# resize model token embeddings
 model.resize_token_embeddings(len(tokenizer))
 
 
@@ -76,7 +77,7 @@ if Config.modality == "coconut":
         target_embedding = embeddings.weight.data[target_id]
         embeddings.weight.data[token_id] = target_embedding
     model = Coconut(model, latent_id, tokenizer.eos_token_id)
-    
+
 # If we want to load the best model
 ### model.load_state_dict(torch.load(os.path.join(Config.save_dir, "best_model.pt")))
 
@@ -109,7 +110,9 @@ collate = partial(collate_fn, tokenizer=tokenizer, latent_id=latent_id)
 best_acc = 0
 
 for epoch in range(Config.num_epochs):
-    scheduled_stage = epoch // Config.epochs_per_stage if Config.modality == "coconut" else 0
+    scheduled_stage = (
+        epoch // Config.epochs_per_stage if Config.modality == "coconut" else 0
+    )
 
     dataset_train = CoconutDataset(
         Config.name,
@@ -156,9 +159,11 @@ for epoch in range(Config.num_epochs):
     model.train()
     train_losses = []
     for batch in tqdm(train_dataloader, desc=f"train epoch {epoch + 1}"):
-        batch = {key: batch[key].to(Config.device) for key in batch.keys() if key != "idx"}
+        batch = {
+            key: batch[key].to(Config.device) for key in batch.keys() if key != "idx"
+        }
 
-        with torch.autocast(device_type='cuda', dtype=torch.float16):
+        with torch.autocast(device_type="cuda", dtype=torch.float16):
             outputs = model(**batch)
             loss = outputs.loss
 
@@ -191,10 +196,14 @@ for epoch in range(Config.num_epochs):
             answer_cot = cot_val[test_idx.cpu().item()]
             question = question_val[test_idx.cpu().item()]
 
-            with torch.autocast(device_type='cuda', dtype=torch.float16):
-                outputs = model.generate(**batch, max_new_tokens=max_new_tokens, pad_token_id=tokenizer.eos_token_id)
+            with torch.autocast(device_type="cuda", dtype=torch.float16):
+                outputs = model.generate(
+                    **batch,
+                    max_new_tokens=max_new_tokens,
+                    pad_token_id=tokenizer.eos_token_id,
+                )
 
-            text_output = tokenizer.decode(outputs[0], skip_special_tokens=True)
+            text_output = tokenizer.decode(outputs[0][0], skip_special_tokens=True)
             answer_output = text_output.split("#")[-1].replace(",", "").strip()
             cot_output = ("\n".join(text_output.split("\n")[1:])).split("#")[0].strip()
 

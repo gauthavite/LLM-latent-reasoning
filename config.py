@@ -11,7 +11,7 @@ class Config:
     max_latent_stage = 6
 
     batch_size = 8
-    num_epochs = 25
+    num_epochs = 50
     lr = 1e-4
     weight_decay = 0.01
 

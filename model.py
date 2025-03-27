@@ -41,14 +41,17 @@ class Coconut(nn.Module):
 
         inputs_embeds = self.embedding(input_ids)
 
+        kv_cache = None
         hidden_states_ls = []
         for pass_idx in range(max_n_latents):
             outputs = self.base_causallm(
                 inputs_embeds=inputs_embeds[:, next_compute_range[0] : next_compute_range[1], :],
                 attention_mask=attention_mask[:, next_compute_range[0] : next_compute_range[1]],
                 position_ids=position_ids[:, next_compute_range[0] : next_compute_range[1]],
-                output_hidden_states=True
+                output_hidden_states=True,
+                past_key_values=kv_cache
             )
+            kv_cache = ((k[:,:,:next_compute_range[1],:], v[:,:,:next_compute_range[1],:]) for k,v in outputs.past_key_values)
             logits.append(outputs.logits)
 
             hidden_states = outputs.hidden_states[-1]
@@ -75,15 +78,17 @@ class Coconut(nn.Module):
                 end = next_compute_range[1] + 1
             next_compute_range = (start, end)
 
-
+        
         outputs = self.base_causallm(
                 inputs_embeds=inputs_embeds[:, next_compute_range[0] : next_compute_range[1], :],
                 attention_mask=attention_mask[:, next_compute_range[0] : next_compute_range[1]],
                 position_ids=position_ids[:, next_compute_range[0] : next_compute_range[1]],
                 output_hidden_states=True,
+                past_key_values=kv_cache
             )
-        logits.append(outputs.logits)
 
+        logits.append(outputs.logits)
+        
         logits = torch.cat(logits, dim=-2)
 
         # Standard language modeling loss

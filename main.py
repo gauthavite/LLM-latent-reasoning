@@ -9,6 +9,8 @@ import torch.optim as optim
 from tqdm import tqdm
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
+import wandb
+
 from model import Coconut
 from config import Config
 from dataset import CoconutDataset, collate_fn
@@ -28,6 +30,21 @@ print(f"weight_decay: {Config.weight_decay}")
 print(f"device: {Config.device}")
 print(f"debug: {Config.debug}")
 print("=" * 30)
+
+wandb.init(project="coconut", name=Config.name)
+wandb.config.update({
+    "modality": Config.modality,
+    "model": Config.model,
+    "c_thought": Config.c_thought,
+    "epochs_per_stage": Config.epochs_per_stage,
+    "max_latent_stage": Config.max_latent_stage,
+    "batch_size": Config.batch_size,
+    "num_epochs": Config.num_epochs,
+    "lr": Config.lr,
+    "weight_decay": Config.weight_decay,
+    "device": Config.device,
+    "debug": Config.debug,
+})
 
 if Config.model == "gemma":
     from unsloth import FastModel
@@ -109,6 +126,7 @@ scaler = torch.amp.GradScaler()
 collate = partial(collate_fn, tokenizer=tokenizer, latent_id=latent_id)
 best_acc = 0
 
+steps = 0  
 for epoch in range(Config.num_epochs):
     scheduled_stage = epoch // Config.epochs_per_stage if Config.modality == "coconut" else 0
 
@@ -170,6 +188,7 @@ for epoch in range(Config.num_epochs):
         scaler.update()
         optimizer.zero_grad()
         train_losses.append(loss.item())
+        steps += 1
 
     avg_train_loss = sum(train_losses) / len(train_losses)
     print(
@@ -215,6 +234,14 @@ for epoch in range(Config.num_epochs):
     print(
         f"Epoch {epoch + 1}/{Config.num_epochs} - Validation accuracy: {test_accuracy:.2f} | CoT validation match: {cot_accuracy:.2f}"
     )
+
+    wandb.log({
+        "eval/acc": test_accuracy.item(),
+        "eval/cot_acc": cot_accuracy.item(),
+        "train/loss": avg_train_loss,
+        "Epoch": epoch,
+        "Step": steps,
+    })
 
     if test_accuracy > best_acc:
         best_acc = test_accuracy

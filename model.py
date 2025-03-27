@@ -51,7 +51,7 @@ class Coconut(nn.Module):
                 output_hidden_states=True,
                 past_key_values=kv_cache
             )
-            kv_cache = ((k[:,:,:next_compute_range[1],:], v[:,:,:next_compute_range[1],:]) for k,v in outputs.past_key_values)
+            kv_cache = [(k[:,:,:next_compute_range[1],:], v[:,:,:next_compute_range[1],:]) for k,v in outputs.past_key_values]
             logits.append(outputs.logits)
 
             hidden_states = outputs.hidden_states[-1]
@@ -81,7 +81,7 @@ class Coconut(nn.Module):
         
         outputs = self.base_causallm(
                 inputs_embeds=inputs_embeds[:, next_compute_range[0] : next_compute_range[1], :],
-                attention_mask=attention_mask[:, next_compute_range[0] : next_compute_range[1]],
+                attention_mask=attention_mask[:, : next_compute_range[1]],
                 position_ids=position_ids[:, next_compute_range[0] : next_compute_range[1]],
                 output_hidden_states=True,
                 past_key_values=kv_cache

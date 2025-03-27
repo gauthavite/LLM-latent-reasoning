@@ -110,9 +110,7 @@ collate = partial(collate_fn, tokenizer=tokenizer, latent_id=latent_id)
 best_acc = 0
 
 for epoch in range(Config.num_epochs):
-    scheduled_stage = (
-        epoch // Config.epochs_per_stage if Config.modality == "coconut" else 0
-    )
+    scheduled_stage = epoch // Config.epochs_per_stage if Config.modality == "coconut" else 0
 
     dataset_train = CoconutDataset(
         Config.name,
